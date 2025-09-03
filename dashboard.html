@@ -1,0 +1,466 @@
+"""
+Aviation Risk Prediction Dashboard
+==================================
+Professional Streamlit Dashboard for Aviation Risk Analysis and Prediction
+
+Run with: streamlit run dashboard.py
+"""
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import joblib
+import json
+from datetime import datetime, date
+import warnings
+warnings.filterwarnings('ignore')
+
+# Page configuration
+st.set_page_config(
+    page_title="Aviation Risk Prediction Dashboard",
+    page_icon="✈️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS for professional styling
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 3rem;
+        color: #2E86AB;
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 2rem;
+        background: linear-gradient(90deg, #2E86AB, #A23B72);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        margin: 0.5rem;
+    }
+    
+    .prediction-result {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        color: white;
+        text-align: center;
+        font-size: 1.2rem;
+        margin: 1rem 0;
+    }
+    
+    .high-risk {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    }
+    
+    .low-risk {
+        background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+    }
+    
+    .sidebar .sidebar-content {
+        background: linear-gradient(180deg, #2E86AB 0%, #A23B72 100%);
+    }
+    
+    .stSelectbox label, .stSlider label, .stDateInput label, .stNumberInput label {
+        font-weight: bold;
+        color: #2E86AB;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Color scheme
+COLORS = {
+    'primary': '#2E86AB',
+    'secondary': '#A23B72', 
+    'success': '#00b894',
+    'danger': '#e17055',
+    'warning': '#fdcb6e',
+    'info': '#74b9ff',
+    'dark': '#2d3436',
+    'light': '#ddd'
+}
+
+RISK_COLORS = {
+    'No_Risk': '#00b894',
+    'Low_Risk': '#fdcb6e',
+    'Medium_Risk': '#e17055',
+    'High_Risk': '#d63031',
+    'Unknown': '#636e72'
+}
+
+class AviationDashboard:
+    def __init__(self):
+        self.load_models_and_data()
+    
+    def load_models_and_data(self):
+        """Load trained models and sample data"""
+        try:
+            # Load model artifacts (adjust paths as needed)
+            # self.model = joblib.load('models/best_model.pkl')
+            # self.scaler = joblib.load('models/scaler.pkl') 
+            # self.encoders = joblib.load('models/encoders.pkl')
+            # self.feature_names = joblib.load('models/feature_names.pkl')
+            
+            # For demo purposes, create dummy model components
+            self.model = None
+            self.scaler = None
+            self.encoders = {}
+            self.feature_names = ['year', 'month', 'aboard', 'is_military', 'is_commercial', 
+                                'weather_mentioned', 'mechanical_failure', 'pilot_error']
+            
+            # Load or create sample data
+            self.sample_data = self.create_sample_data()
+            
+        except Exception as e:
+            st.error(f"Error loading model components: {str(e)}")
+            self.model = None
+    
+    def create_sample_data(self):
+        """Create sample aviation data for demonstration"""
+        np.random.seed(42)
+        
+        n_samples = 1000
+        years = np.random.randint(1990, 2024, n_samples)
+        
+        sample_data = pd.DataFrame({
+            'date': pd.to_datetime([f"{year}-{np.random.randint(1,13)}-{np.random.randint(1,29)}" 
+                                  for year in years]),
+            'year': years,
+            'month': np.random.randint(1, 13, n_samples),
+            'fatalities': np.random.poisson(8, n_samples),
+            'aboard': np.random.randint(10, 300, n_samples),
+            'operator': np.random.choice(['Commercial Airlines', 'Military', 'Private', 'Charter'], n_samples),
+            'aircraft_type': np.random.choice(['Boeing 737', 'Airbus A320', 'Cessna 172', 'Military Fighter'], n_samples),
+            'location': np.random.choice(['USA', 'Europe', 'Asia', 'South America', 'Africa'], n_samples),
+            'is_military': np.random.choice([0, 1], n_samples, p=[0.7, 0.3]),
+            'is_commercial': np.random.choice([0, 1], n_samples, p=[0.4, 0.6]),
+            'weather_mentioned': np.random.choice([0, 1], n_samples, p=[0.8, 0.2]),
+            'mechanical_failure': np.random.choice([0, 1], n_samples, p=[0.7, 0.3]),
+            'pilot_error': np.random.choice([0, 1], n_samples, p=[0.85, 0.15])
+        })
+        
+        # Create risk levels based on fatalities
+        sample_data['risk_level'] = pd.cut(sample_data['fatalities'], 
+                                         bins=[-1, 0, 5, 15, 100], 
+                                         labels=['No_Risk', 'Low_Risk', 'Medium_Risk', 'High_Risk'])
+        
+        sample_data['high_risk'] = (sample_data['fatalities'] > 10).astype(int)
+        sample_data['survival_rate'] = 1 - (sample_data['fatalities'] / sample_data['aboard'])
+        sample_data['survival_rate'] = sample_data['survival_rate'].clip(0, 1)
+        
+        return sample_data
+
+    def predict_risk(self, input_features):
+        """Make risk prediction"""
+        # Dummy prediction for demonstration
+        # In real implementation, use loaded model
+        
+        risk_factors = (
+            input_features.get('weather_mentioned', 0) * 0.3 +
+            input_features.get('mechanical_failure', 0) * 0.4 +
+            input_features.get('pilot_error', 0) * 0.5 +
+            (1 if input_features.get('aboard', 100) > 200 else 0) * 0.2 +
+            (1 if input_features.get('is_military', 0) else 0) * 0.1
+        )
+        
+        risk_probability = min(0.9, max(0.1, risk_factors + np.random.normal(0, 0.1)))
+        risk_class = 1 if risk_probability > 0.5 else 0
+        confidence = abs(risk_probability - 0.5) * 2
+        
+        return risk_probability, risk_class, confidence
+
+def main():
+    dashboard = AviationDashboard()
+    
+    # Main header
+    st.markdown('<h1 class="main-header">✈️ Aviation Risk Prediction Dashboard</h1>', 
+                unsafe_allow_html=True)
+    
+    # Sidebar navigation
+    st.sidebar.title("🎛️ Navigation")
+    page = st.sidebar.selectbox(
+        "Choose a page",
+        ["📊 Overview & Analytics", "🔮 Risk Prediction", "📈 Historical Analysis", "📋 Data Explorer"]
+    )
+    
+    if page == "📊 Overview & Analytics":
+        show_overview_page(dashboard)
+    elif page == "🔮 Risk Prediction":
+        show_prediction_page(dashboard)
+    elif page == "📈 Historical Analysis":
+        show_historical_analysis_page(dashboard)
+    elif page == "📋 Data Explorer":
+        show_data_explorer_page(dashboard)
+
+def show_overview_page(dashboard):
+    """Display overview and key metrics"""
+    
+    st.header("📊 Aviation Safety Overview")
+    
+    # Key Metrics Row
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    data = dashboard.sample_data
+    
+    with col1:
+        st.metric(
+            label="Total Accidents",
+            value=f"{len(data):,}",
+            delta=f"{len(data[data['year'] == data['year'].max()]):,} this year"
+        )
+    
+    with col2:
+        st.metric(
+            label="Total Fatalities", 
+            value=f"{data['fatalities'].sum():,}",
+            delta=f"{data[data['year'] == data['year'].max()]['fatalities'].sum():,} this year"
+        )
+    
+    with col3:
+        st.metric(
+            label="Average Survival Rate",
+            value=f"{data['survival_rate'].mean()*100:.1f}%",
+            delta=f"{(data[data['year'] >= data['year'].max()-5]['survival_rate'].mean() - data[data['year'] < data['year'].max()-5]['survival_rate'].mean())*100:.1f}% (5yr trend)"
+        )
+    
+    with col4:
+        st.metric(
+            label="High Risk Rate",
+            value=f"{data['high_risk'].mean()*100:.1f}%",
+            delta=f"{(data[data['year'] >= data['year'].max()-5]['high_risk'].mean() - data[data['year'] < data['year'].max()-5]['high_risk'].mean())*100:.1f}% (5yr trend)"
+        )
+    
+    with col5:
+        st.metric(
+            label="Commercial Share",
+            value=f"{data['is_commercial'].mean()*100:.1f}%",
+            delta="vs Military"
+        )
+    
+    # Main visualizations
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.subheader("🗓️ Accidents Timeline")
+        
+        fig_timeline = px.scatter(
+            data, 
+            x='year', 
+            y='fatalities',
+            color='risk_level',
+            size='aboard',
+            hover_data=['operator', 'aircraft_type'],
+            color_discrete_map=RISK_COLORS,
+            title="Aviation Accidents Over Time"
+        )
+        
+        fig_timeline.update_layout(
+            height=400,
+            showlegend=True,
+            plot_bgcolor='white',
+            paper_bgcolor='white'
+        )
+        
+        st.plotly_chart(fig_timeline, use_container_width=True)
+    
+    with col2:
+        st.subheader("🎯 Risk Distribution")
+        
+        risk_counts = data['risk_level'].value_counts()
+        
+        fig_pie = go.Figure(data=[go.Pie(
+            labels=risk_counts.index,
+            values=risk_counts.values,
+            hole=0.5,
+            marker=dict(colors=[RISK_COLORS.get(level, '#636e72') for level in risk_counts.index])
+        )])
+        
+        fig_pie.update_layout(
+            height=400,
+            showlegend=True,
+            title_text="Risk Level Distribution"
+        )
+        
+        st.plotly_chart(fig_pie, use_container_width=True)
+    
+    # Additional charts
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📅 Monthly Patterns")
+        
+        monthly_accidents = data.groupby('month').size().reset_index()
+        monthly_accidents.columns = ['Month', 'Accidents']
+        
+        fig_monthly = px.bar(
+            monthly_accidents,
+            x='Month',
+            y='Accidents',
+            color='Accidents',
+            color_continuous_scale='Blues',
+            title="Accident Frequency by Month"
+        )
+        
+        fig_monthly.update_layout(height=350)
+        st.plotly_chart(fig_monthly, use_container_width=True)
+    
+    with col2:
+        st.subheader("🏢 Operator Analysis")
+        
+        operator_stats = data.groupby(['is_military', 'is_commercial']).agg({
+            'high_risk': 'mean',
+            'fatalities': 'mean'
+        }).reset_index()
+        
+        operator_labels = []
+        for _, row in operator_stats.iterrows():
+            if row['is_military']:
+                operator_labels.append('Military')
+            elif row['is_commercial']:
+                operator_labels.append('Commercial')
+            else:
+                operator_labels.append('Other')
+        
+        operator_stats['Operator_Type'] = operator_labels
+        
+        fig_operator = px.bar(
+            operator_stats,
+            x='Operator_Type',
+            y='high_risk',
+            color='fatalities',
+            color_continuous_scale='Reds',
+            title="Risk Rate by Operator Type",
+            labels={'high_risk': 'High Risk Rate'}
+        )
+        
+        fig_operator.update_layout(height=350)
+        st.plotly_chart(fig_operator, use_container_width=True)
+
+def show_prediction_page(dashboard):
+    """Display risk prediction interface"""
+    
+    st.header("🔮 Aviation Risk Prediction")
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.subheader("Flight Parameters")
+        
+        # Input form
+        with st.form("prediction_form"):
+            year = st.slider("Year", 1990, 2024, 2023)
+            month = st.selectbox("Month", range(1, 13), index=5)
+            
+            aboard = st.number_input("People Aboard", min_value=1, max_value=500, value=150)
+            
+            st.subheader("Aircraft & Operator")
+            is_military = st.checkbox("Military Operation")
+            is_commercial = st.checkbox("Commercial Flight", value=True)
+            
+            st.subheader("Risk Factors")
+            weather_mentioned = st.checkbox("Adverse Weather Conditions")
+            mechanical_failure = st.checkbox("Mechanical Issues Reported")
+            pilot_error = st.checkbox("Pilot Error Suspected")
+            
+            predict_button = st.form_submit_button("🎯 Predict Risk", type="primary")
+    
+    with col2:
+        st.subheader("Risk Assessment Results")
+        
+        if predict_button:
+            # Gather input features
+            input_features = {
+                'year': year,
+                'month': month,
+                'aboard': aboard,
+                'is_military': 1 if is_military else 0,
+                'is_commercial': 1 if is_commercial else 0,
+                'weather_mentioned': 1 if weather_mentioned else 0,
+                'mechanical_failure': 1 if mechanical_failure else 0,
+                'pilot_error': 1 if pilot_error else 0
+            }
+            
+            # Make prediction
+            risk_prob, risk_class, confidence = dashboard.predict_risk(input_features)
+            
+            # Display results
+            risk_level = "HIGH RISK" if risk_class == 1 else "LOW RISK"
+            risk_color = "high-risk" if risk_class == 1 else "low-risk"
+            
+            st.markdown(f"""
+            <div class="prediction-result {risk_color}">
+                <h2>Risk Level: {risk_level}</h2>
+                <p>Risk Probability: {risk_prob:.1%}</p>
+                <p>Confidence: {confidence:.1%}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Risk breakdown
+            st.subheader("📊 Risk Factor Analysis")
+            
+            factors = {
+                'Weather Conditions': weather_mentioned * 30,
+                'Mechanical Issues': mechanical_failure * 40, 
+                'Human Factors': pilot_error * 50,
+                'Aircraft Size': (aboard > 200) * 20,
+                'Operation Type': is_military * 10
+            }
+            
+            fig_factors = go.Figure(go.Bar(
+                x=list(factors.keys()),
+                y=list(factors.values()),
+                marker_color=COLORS['danger'] if risk_class == 1 else COLORS['success'],
+                text=[f"{v}%" for v in factors.values()],
+                textposition='auto'
+            ))
+            
+            fig_factors.update_layout(
+                title="Risk Factor Contribution (%)",
+                yaxis_title="Risk Contribution",
+                height=350
+            )
+            
+            st.plotly_chart(fig_factors, use_container_width=True)
+            
+            # Recommendations
+            st.subheader("💡 Safety Recommendations")
+            
+            recommendations = []
+            
+            if weather_mentioned:
+                recommendations.append("⛈️ Monitor weather conditions closely and consider flight delays")
+            if mechanical_failure:
+                recommendations.append("🔧 Conduct thorough pre-flight mechanical inspections")
+            if pilot_error:
+                recommendations.append("👨‍✈️ Ensure crew rest requirements and additional training")
+            if aboard > 200:
+                recommendations.append("👥 Large aircraft - extra safety protocols recommended")
+            if is_military:
+                recommendations.append("🎖️ Military operation - follow enhanced safety procedures")
+            
+            if not recommendations:
+                recommendations.append("✅ All parameters look normal - standard safety protocols apply")
+            
+            for rec in recommendations:
+                st.info(rec)
+        
+        else:
+            st.info("👆 Please fill in the flight parameters and click 'Predict Risk' to get assessment")
+            
+            # Show sample predictions
+            st.subheader("📋 Sample Risk Scenarios")
+            
+            scenarios = [
+                {"name": "Commercial Flight - Normal", "risk": 0.15, "factors": "Clear weather, routine operation"},
+                {"name": "Military Exercise", "risk": 0.35, "factors": "Military operation, complex maneuvers"},
+                {"name": "
