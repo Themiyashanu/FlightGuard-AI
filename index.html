@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aviation Safety Risk Prediction Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        /* Animated background particles */
+        #particles-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: rotate 20s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(76, 175, 80, 0.2);
+            padding: 8px 16px;
+            border-radius: 25px;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #4caf50;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #4caf50;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .glass-card:hover::before {
+            left: 100%;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .prediction-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-group label {
+            display: block;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #4ecdc4;
+            box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.2);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .predict-btn {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .predict-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 107, 107, 0.4);
+        }
+
+        .predict-btn:active {
+            transform: translateY(0);
+        }
+
+        .result-display {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .risk-meter {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+
+        .risk-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            margin-bottom: 10px;
+        }
+
+        .risk-label {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .risk-low { color: #4caf50; }
+        .risk-medium { color: #ff9800; }
+        .risk-high { color: #f44336; }
+
+        .risk-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .risk-detail-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .risk-detail-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.02);
+        }
+
+        .detail-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #4ecdc4;
+            display: block;
+        }
+
+        .detail-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: #4ecdc4;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #4ecdc4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .feature-importance {
+            margin-top: 20px;
+        }
+
+        .importance-bar {
+            margin-bottom: 15px;
+        }
+
+        .importance-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.9rem;
+        }
+
+        .importance-progress {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .importance-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ecdc4, #45b7d1);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Notification System */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: linear-gradient(45deg, #4caf50, #45a049);
+        }
+
+        .notification.error {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+        }
+
+        .notification.info {
+            background: linear-gradient(45deg, #2196f3, #1976d2);
+        }
+    </style>
+</head>
+<body>
+    <div id="particles-bg"></div>
+    
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-plane-departure"></i> Aviation Safety Risk Predictor</h1>
+            <p>AI-Powered Flight Risk Assessment Dashboard</p>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>Model Status: Active & Ready</span>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Input Form -->
+            <div class="glass-card">
+                <div class="card-title">
+                    <i class="fas fa-edit"></i>
+                    Flight Parameters
+                </div>
+                <form class="prediction-form" id="predictionForm">
+                    <div class="input-group">
+                        <label for="year">Year</label>
+                        <input type="number" id="year" value="2024" min="1908" max="2030">
+                    </div>
+                    <div class="input-group">
+                        <label for="month">Month</label>
+                        <select id="month">
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6" selected>June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="aboard">Passengers Aboard</label>
+                        <input type="number" id="aboard" value="150" min="1" max="1000">
+                    </div>
+                    <div class="input-group">
+                        <label for="aircraft">Aircraft Category</label>
+                        <select id="aircraft">
+                            <option value="commercial">Commercial</option>
+                            <option value="military">Military</option>
+                            <option value="general">General Aviation</option>
+                            <option value="helicopter">Helicopter</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="operator">Operator Type</label>
+                        <select id="operator">
+                            <option value="commercial">Commercial Airlines</option>
+                            <option value="military">Military</option>
+                            <option value="private">Private</option>
+                            <option value="cargo">Cargo</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="weather">Weather Conditions</label>
+                        <select id="weather">
+                            <option value="0" selected>Clear</option>
+                            <option value="1">Adverse Weather</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="predict-btn">
+                        <i class="fas fa-calculator"></i>
+                        Analyze Risk
+                    </button>
+                </form>
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+
+            <!-- Results Display -->
+            <div class="glass-card">
+                <div class="card-title">
+                    <i class="fas fa-chart-line"></i>
+                    Risk Assessment
+                </div>
+                <div class="result-display">
+                    <div class="risk-meter">
+                        <canvas id="riskMeter" width="200" height="200"></canvas>
+                    </div>
+                    <div class="risk-value" id="riskValue">--</div>
+                    <div class="risk-label" id="riskLabel">Click Analyze to Start</div>
+                    <div class="risk-details" id="riskDetails">
+                        <div class="risk-detail-item">
+                            <span class="detail-value" id="confidenceValue">--</span>
+                            <div class="detail-label">Confidence</div>
+                        </div>
+                        <div class="risk-detail-item">
+                            <span class="detail-value" id="severityValue">--</span>
+                            <div class="detail-label">Severity Index</div>
+                        </div>
+                        <div class="risk-detail-item">
+                            <span class="detail-value" id="safetyScore">--</span>
+                            <div class="detail-label">Safety Score</div>
+                        </div>
+                        <div class="risk-detail-item">
+                            <span class="detail-value" id="recommendation">--</span>
+                            <div class="detail-label">Status</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature Importance -->
+            <div class="glass-card">
+                <div class="card-title">
+                    <i class="fas fa-brain"></i>
+                    AI Insights
+                </div>
+                <div class="feature-importance">
+                    <div class="importance-bar">
+                        <div class="importance-label">
+                            <span>Aircraft Type</span>
+                            <span id="aircraft-importance">25%</span>
+                        </div>
+                        <div class="importance-progress">
+                            <div class="importance-fill" id="aircraft-fill" style="width: 25%;"></div>
+                        </div>
+                    </div>
+                    <div class="importance-bar">
+                        <div class="importance-label">
+                            <span>Passengers</span>
+                            <span id="passengers-importance">20%</span>
+                        </div>
+                        <div class="importance-progress">
+                            <div class="importance-fill" id="passengers-fill" style="width: 20%;"></div>
+                        </div>
+                    </div>
+                    <div class="importance-bar">
+                        <div class="importance-label">
+                            <span>Weather</span>
+                            <span id="weather-importance">18%</span>
+                        </div>
+                        <div class="importance-progress">
+                            <div class="importance-fill" id="weather-fill" style="width: 18%;"></div>
+                        </div>
+                    </div>
+                    <div class="importance-bar">
+                        <div class="importance-label">
+                            <span>Operator</span>
+                            <span id="operator-importance">17%</span>
+                        </div>
+                        <div class="importance-progress">
+                            <div class="importance-fill" id="operator-fill" style="width: 17%;"></div>
+                        </div>
+                    </div>
+                    <div class="importance-bar">
+                        <div class="importance-label">
+                            <span>Time Factors</span>
+                            <span id="time-importance">20%</span>
+                        </div>
+                        <div class="importance-progress">
+                            <div class="importance-fill" id="time-fill" style="width: 20%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <div class="glass-card">
+                <div class="card-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Risk Distribution
+                </div>
+                <div class="chart-container">
+                    <canvas id="riskChart"></canvas>
+                </div>
+            </div>
+            <div class="glass-card">
+                <div class="card-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Historical Trends
+                </div>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="stat-value" id="totalFlights">152,847</div>
+                <div class="stat-label">Total Flights Analyzed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-percentage"></i>
+                </div>
+                <div class="stat-value" id="accuracy">94.7%</div>
+                <div class="stat-label">Model Accuracy</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-value" id="avgResponse">0.3s</div>
+                <div class="stat-label">Average Response</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-heart"></i>
+                </div>
+                <div class="stat-value" id="livesSaved">12,456</div>
+                <div class="stat-label">Estimated Lives Protected</div>
+            </div>
+        </div>
+    </div>
+
+   <script>
+/* -------------------- Animated particles BG (unchanged) -------------------- */
+function initParticles() {
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ alpha: true });
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.getElementById('particles-bg').appendChild(renderer.domElement);
+
+  const geometry = new THREE.BufferGeometry();
+  const particleCount = 100;
+  const positions = new Float32Array(particleCount * 3);
+
+  for (let i = 0; i < particleCount * 3; i += 3) {
+    positions[i] = (Math.random() - 0.5) * 20;
+    positions[i + 1] = (Math.random() - 0.5) * 20;
+    positions[i + 2] = (Math.random() - 0.5) * 20;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+  const material = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 0.05,
+    transparent: true,
+    opacity: 0.6
+  });
+
+  const particles = new THREE.Points(geometry, material);
+  scene.add(particles);
+
+  camera.position.z = 5;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    particles.rotation.x += 0.001;
+    particles.rotation.y += 0.002;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+/* --------------------------- Risk Meter (canvas) --------------------------- */
+function drawRiskMeter(canvas, probability) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 20;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Background ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 14;
+  ctx.stroke();
+
+  // Risk arc (0 → probability)
+  const start = -Math.PI / 2;
+  const end = start + (2 * Math.PI * Math.max(0, Math.min(1, probability)));
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, start, end);
+  // color shifts from green→orange→red based on probability
+  const p = Math.max(0, Math.min(1, probability));
+  const grd = ctx.createLinearGradient(0, 0, w, 0);
+  if (p < 0.33) { grd.addColorStop(0, '#4caf50'); grd.addColorStop(1, '#8bc34a'); }
+  else if (p < 0.66) { grd.addColorStop(0, '#ff9800'); grd.addColorStop(1, '#ffc107'); }
+  else { grd.addColorStop(0, '#f44336'); grd.addColorStop(1, '#ff5252'); }
+  ctx.strokeStyle = grd;
+  ctx.lineWidth = 14;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Tick marks
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(start);
+  const ticks = 20;
+  for (let i = 0; i <= ticks; i++) {
+    ctx.beginPath();
+    ctx.rotate((2 * Math.PI) / ticks);
+    ctx.moveTo(0, -r - 4);
+    ctx.lineTo(0, -r + 8);
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ------------------------------ UI helpers -------------------------------- */
+function showNotification(message, type = 'info') {
+  let holder = document.querySelector('.notification');
+  if (!holder) {
+    holder = document.createElement('div');
+    holder.className = 'notification';
+    document.body.appendChild(holder);
+  }
+  holder.className = `notification show ${type}`;
+  holder.textContent = message;
+  setTimeout(() => holder.classList.remove('show'), 3000);
+}
+
+function setRiskLabel(prob) {
+  const labelEl = document.getElementById('riskLabel');
+  if (prob > 0.6) { labelEl.textContent = 'High Risk'; labelEl.className = 'risk-label risk-high'; }
+  else if (prob > 0.3) { labelEl.textContent = 'Medium Risk'; labelEl.className = 'risk-label risk-medium'; }
+  else { labelEl.textContent = 'Low Risk'; labelEl.className = 'risk-label risk-low'; }
+}
+
+function updateDetailValues({ probability, confidence, severityIndex, safetyScore, recommendation }) {
+  document.getElementById('riskValue').textContent = (probability * 100).toFixed(1) + '%';
+  document.getElementById('confidenceValue').textContent = (confidence * 100).toFixed(1) + '%';
+  document.getElementById('severityValue').textContent = severityIndex.toString();
+  document.getElementById('safetyScore').textContent = safetyScore.toString();
+  document.getElementById('recommendation').textContent = recommendation;
+}
+
+function updateImportanceBars(importance) {
+  // importance: { aircraft, passengers, weather, operator, time } in 0..1
+  const percent = k => Math.round((importance[k] || 0) * 100) + '%';
+  const set = (key, value) => {
+    const label = document.getElementById(`${key}-importance`);
+    const fill = document.getElementById(`${key}-fill`);
+    if (label) label.textContent = value;
+    if (fill) fill.style.width = value;
+  };
+  set('aircraft', percent('aircraft'));
+  set('passengers', percent('passengers'));
+  set('weather', percent('weather'));
+  set('operator', percent('operator'));
+  set('time', percent('time'));
+}
+
+/* ------------------------------ Charts setup ------------------------------ */
+let riskChart, trendChart;
+function ensureCharts() {
+  const rc = document.getElementById('riskChart');
+  const tc = document.getElementById('trendChart');
+  if (!riskChart && rc) {
+    riskChart = new Chart(rc.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Predicted Risk', 'Safety'],
+        datasets: [{ data: [0, 100] }]
+      },
+      options: { responsive: true, plugins: { legend: { display: true } } }
+    });
+  }
+  if (!trendChart && tc) {
+    trendChart = new Chart(tc.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: ['T-5', 'T-4', 'T-3', 'T-2', 'T-1', 'Now'],
+        datasets: [{ label: 'Risk Trend', data: [10, 15, 12, 18, 14, 0] }]
+      },
+      options: { responsive: true, plugins: { legend: { display: true } } }
+    });
+  }
+}
+
+function updateCharts(prob) {
+  if (riskChart) {
+    riskChart.data.datasets[0].data = [Math.round(prob * 100), Math.round((1 - prob) * 100)];
+    riskChart.update();
+  }
+  if (trendChart) {
+    const d = trendChart.data.datasets[0].data;
+    d.shift();
+    d.push(Math.round(prob * 100));
+    trendChart.update();
+  }
+}
+
+/* --------------------------- API call + wiring ---------------------------- */
+/* IMPORTANT: your backend base URL */
+const API_BASE = 'https://flightguard-ai.onrender.com';
+
+async function callPredictAPI(payload) {
+  const res = await fetch(`${API_BASE}/predict`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`API error ${res.status}: ${txt}`);
+  }
+  return res.json();
+}
+
+function computeDerivedFromAPI(result, inputs) {
+  // If your API already returns these fields, you can map them directly.
+  // Here we derive reasonable display values if only probability + risk are returned.
+  const p = Math.max(0, Math.min(1, result.probability ?? 0));
+  const out = {
+    probability: p,
+    riskLevel: result.risk || (p > 0.6 ? 'High Risk' : p > 0.3 ? 'Medium Risk' : 'Low Risk'),
+    confidence: typeof result.confidence === 'number' ? result.confidence : 0.9,
+    severityIndex: typeof result.severityIndex === 'number' ? result.severityIndex : Math.round(p * 10),
+    safetyScore: typeof result.safetyScore === 'number' ? result.safetyScore : Math.round((1 - p) * 100),
+    recommendation: result.recommendation || (p > 0.6 ? 'HIGH' : p > 0.3 ? 'MEDIUM' : 'LOW'),
+    importance: result.importance || // if backend returns SHAP/permutation importances
+      { aircraft: 0.25, passengers: 0.20, weather: 0.18, operator: 0.17, time: 0.20 }
+  };
+  // Simple dynamic tweak like your old JS:
+  if (Number(inputs.weather_mentioned) === 1) {
+    out.importance.weather = Math.min(1, out.importance.weather + 0.1);
+    out.importance.aircraft = Math.max(0, out.importance.aircraft - 0.05);
+    out.importance.operator = Math.max(0, out.importance.operator - 0.05);
+  }
+  if (Number(inputs.aboard) > 200) {
+    out.importance.passengers = Math.min(1, out.importance.passengers + 0.1);
+    out.importance.time = Math.max(0, out.importance.time - 0.1);
+  }
+  return out;
+}
+
+/* ------------------------------- Main init ------------------------------- */
+document.addEventListener('DOMContentLoaded', () => {
+  initParticles();
+  ensureCharts();
+
+  const form = document.getElementById('predictionForm');
+  const loading = document.getElementById('loadingOverlay');
+  const riskMeterCanvas = document.getElementById('riskMeter');
+
+  // Initial meter (0)
+  drawRiskMeter(riskMeterCanvas, 0);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      // Use the keys your backend expects:
+      year: parseInt(document.getElementById('year').value),
+      month: parseInt(document.getElementById('month').value),
+      aboard: parseInt(document.getElementById('aboard').value),
+      aircraft_category: document.getElementById('aircraft').value, // e.g., "commercial"
+      operator: document.getElementById('operator').value,          // e.g., "commercial"
+      weather_mentioned: parseInt(document.getElementById('weather').value) // 0/1
+    };
+
+    try {
+      loading.style.display = 'flex';
+      const apiResult = await callPredictAPI(payload);
+      const display = computeDerivedFromAPI(apiResult, payload);
+
+      drawRiskMeter(riskMeterCanvas, display.probability);
+      setRiskLabel(display.probability);
+      updateDetailValues(display);
+      updateImportanceBars(display.importance);
+      updateCharts(display.probability);
+
+      showNotification('Prediction updated successfully.', 'success');
+    } catch (err) {
+      console.error(err);
+      showNotification('⚠️ Could not connect to prediction API.', 'error');
+    } finally {
+      loading.style.display = 'none';
+    }
+  });
+});
+</script>

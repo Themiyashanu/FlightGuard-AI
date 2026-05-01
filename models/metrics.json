@@ -1,0 +1,22 @@
+{
+  "best_model": "Gradient Boosting",
+  "best_accuracy": 0.9022770398481973,
+  "best_auc": 0.9497168989547038,
+  "all_models": {
+    "Random Forest": {
+      "accuracy": 0.8956356736242884,
+      "auc": 0.9473522793263647
+    },
+    "Gradient Boosting": {
+      "accuracy": 0.9022770398481973,
+      "auc": 0.9497168989547038
+    },
+    "Logistic Regression": {
+      "accuracy": 0.7893738140417458,
+      "auc": 0.8698569976771197
+    }
+  },
+  "train_rows": 4214,
+  "test_rows": 1054,
+  "total_rows": 5268
+}
