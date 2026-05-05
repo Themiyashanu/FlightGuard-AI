@@ -69,11 +69,11 @@ You can also run CLI predictions:
 python src/predict.py --year 2020 --month 6 --aboard 140 --is_commercial 1 --weather_mentioned 0
 ```
 
-![Login](project-screenshots/Screenshot%20(214).png)
-![Login](project-screenshots/Screenshot%20(215).png)
-![Login](project-screenshots/Screenshot%20(216).png)
-![Login](project-screenshots/Screenshot%20(217).png)
-![Login](project-screenshots/Screenshot%20(218).png)
+![Login](project%20screenshots/Screenshot%20(214).png)
+![Login](project%20screenshots/Screenshot%20(215).png)
+![Login](project%20screenshots/Screenshot%20(216).png)
+![Login](project%20screenshots/Screenshot%20(217).png)
+![Login](project%20screenshots/Screenshot%20(218).png)
 
 ## 🎯 Future Improvements
 - [ ] Real-time weather API integration
